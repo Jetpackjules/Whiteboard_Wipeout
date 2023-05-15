@@ -1,0 +1,226 @@
+[gd_scene load_steps=11 format=2]
+
+[ext_resource path="res://html5webcam.gd" type="Script" id=1]
+[ext_resource path="res://testMaterial.tres" type="Material" id=2]
+[ext_resource path="res://Visuals.gd" type="Script" id=3]
+[ext_resource path="res://collision_generation.gd" type="Script" id=4]
+[ext_resource path="res://Walking_Player.tscn" type="PackedScene" id=5]
+[ext_resource path="res://Main_cam.gd" type="Script" id=6]
+[ext_resource path="res://Kinematic_Player.tscn" type="PackedScene" id=7]
+
+[sub_resource type="GDScript" id=1]
+script/source = "extends MarginContainer
+
+export var webcam:NodePath = \"VBoxContainer/ViewportContainer/Viewport/TextureRect/Webcam_HTML5\"
+export var textureRect:NodePath = \"VBoxContainer/ViewportContainer/Viewport/TextureRect\"
+
+export var viewport:NodePath = \"VBoxContainer/ViewportContainer/Viewport\"
+export var myMat:Material
+
+
+func _ready():
+	pass
+
+
+func freeze():
+#	yield(get_tree(), \"idle_frame\")
+	var wc = get_node(webcam) as Webcam_HTML5
+	print(\"freeze\")
+	match wc.jpeg_quality:
+		0.5:
+			print(\"good_cam\")
+			wc.height = 1080
+			wc.jpeg_quality = 1
+			wc.update = Webcam_HTML5.UPDATE.ONCE
+		_:
+			print(\"bad_cam\")
+			wc.height = 240
+			wc.jpeg_quality = 0.5
+			wc.update = Webcam_HTML5.UPDATE.EVERY_FRAME
+
+func flip():
+	var tr = get_node(textureRect) as TextureRect
+	tr.flip_h = !tr.flip_h
+
+
+func shader():
+	yield(get_tree(), \"idle_frame\")
+	var tr = get_node(textureRect) as TextureRect
+	if tr.material:
+		tr.material = null
+	else:
+		tr.material = myMat
+
+
+func fill():
+	var tr = get_node(textureRect) as TextureRect
+	if tr.stretch_mode != TextureRect.STRETCH_KEEP_ASPECT_COVERED:
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	else:
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		
+
+func scan():
+	var collision_generator = get_tree().get_root().get_node(\"Node\")
+	
+	yield(shader(), \"completed\")
+	
+	yield(collision_generator.scan(), \"completed\")
+	freeze()
+	
+	shader()
+
+
+
+	
+	
+func change_canny(value):
+	var tr = get_node(textureRect) as TextureRect
+	tr.material.set_shader_param(\"edge_threshold\", value)
+	print(\"CHAANGESD\")
+	
+# Scanning for buttom press:
+var thresh = 0.5
+
+func _input(ev):
+	if ev is InputEventKey:
+		if ev.is_action_pressed(\"canny_thresh_up\"):
+			print(thresh)
+			thresh += 0.05
+			change_canny(thresh)
+		elif ev.is_action_pressed(\"canny_thresh_down\"):
+			print(thresh)
+			thresh -= 0.05
+			change_canny(thresh)
+
+		elif not ev.echo:
+			if ev.is_action_pressed(\"freeze\"):
+				freeze()
+			elif ev.is_action_pressed(\"scan\"):
+				scan()
+			elif ev.is_action_pressed(\"shader\"):
+				shader()
+			elif ev.is_action_pressed(\"fill\"):
+				fill()
+			elif ev.is_action_pressed(\"flip\"):
+				flip()
+"
+
+[sub_resource type="ImageTexture" id=3]
+
+[sub_resource type="RectangleShape2D" id=4]
+extents = Vector2( 50, 2 )
+
+[node name="Node" type="Node"]
+script = ExtResource( 4 )
+
+[node name="testCamera" type="MarginContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = SubResource( 1 )
+myMat = ExtResource( 2 )
+
+[node name="VBoxContainer" type="VBoxContainer" parent="testCamera"]
+margin_right = 1024.0
+margin_bottom = 600.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="ViewportContainer" type="ViewportContainer" parent="testCamera/VBoxContainer"]
+margin_right = 1024.0
+margin_bottom = 600.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+
+[node name="Viewport" type="Viewport" parent="testCamera/VBoxContainer/ViewportContainer"]
+size = Vector2( 1024, 600 )
+transparent_bg = true
+handle_input_locally = false
+hdr = false
+usage = 0
+
+[node name="Main_cam" type="Camera2D" parent="testCamera/VBoxContainer/ViewportContainer/Viewport"]
+offset = Vector2( 512, 290 )
+current = true
+editor_draw_drag_margin = true
+script = ExtResource( 6 )
+
+[node name="TextureRect" type="TextureRect" parent="testCamera/VBoxContainer/ViewportContainer/Viewport"]
+material = ExtResource( 2 )
+margin_top = -10.0
+margin_right = 1024.0
+margin_bottom = 590.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+texture = SubResource( 3 )
+expand = true
+stretch_mode = 6
+flip_h = true
+
+[node name="Webcam_HTML5" type="Node" parent="testCamera/VBoxContainer/ViewportContainer/Viewport/TextureRect"]
+script = ExtResource( 1 )
+texture = SubResource( 3 )
+jpeg_quality = 0.5
+height = 240
+
+[node name="BorderL" type="ColorRect" parent="testCamera/VBoxContainer/ViewportContainer/Viewport"]
+margin_top = -10.0
+margin_right = 115.0
+margin_bottom = 590.0
+rect_clip_content = true
+size_flags_horizontal = 3
+size_flags_vertical = 3
+color = Color( 0, 0, 0, 1 )
+
+[node name="BorderR" type="ColorRect" parent="testCamera/VBoxContainer/ViewportContainer/Viewport"]
+margin_left = 909.0
+margin_top = -10.0
+margin_right = 1024.0
+margin_bottom = 590.0
+rect_clip_content = true
+size_flags_horizontal = 3
+size_flags_vertical = 3
+color = Color( 0, 0, 0, 1 )
+
+[node name="Visuals" type="Node2D" parent="testCamera/VBoxContainer/ViewportContainer/Viewport"]
+script = ExtResource( 3 )
+
+[node name="Kinematic_Player" parent="testCamera/VBoxContainer/ViewportContainer/Viewport" instance=ExtResource( 7 )]
+physics_interpolation_mode = 2
+position = Vector2( 500, 200 )
+
+[node name="Player_Cam" type="Camera2D" parent="testCamera/VBoxContainer/ViewportContainer/Viewport/Kinematic_Player"]
+zoom = Vector2( 0.6, 0.6 )
+limit_left = 0
+limit_top = 0
+limit_right = 1024
+limit_bottom = 590
+limit_smoothed = true
+smoothing_enabled = true
+editor_draw_limits = true
+
+[node name="Walking_Player" parent="testCamera/VBoxContainer/ViewportContainer/Viewport" instance=ExtResource( 5 )]
+physics_interpolation_mode = 2
+position = Vector2( 500, 10 )
+
+[node name="Player_Cam" type="Camera2D" parent="testCamera/VBoxContainer/ViewportContainer/Viewport/Walking_Player"]
+zoom = Vector2( 0.6, 0.6 )
+limit_left = 0
+limit_top = 0
+limit_right = 1024
+limit_bottom = 590
+limit_smoothed = true
+smoothing_enabled = true
+editor_draw_limits = true
+
+[node name="StaticBody2D" type="StaticBody2D" parent="testCamera/VBoxContainer/ViewportContainer/Viewport" groups=["Ground"]]
+physics_interpolation_mode = 2
+position = Vector2( 0, -8 )
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="testCamera/VBoxContainer/ViewportContainer/Viewport/StaticBody2D"]
+position = Vector2( 509.5, 121.5 )
+shape = SubResource( 4 )

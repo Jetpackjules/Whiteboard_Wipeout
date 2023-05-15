@@ -1,0 +1,45 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=2]
+
+[sub_resource type="Shader" id=1]
+code = "shader_type canvas_item;
+
+uniform float edge_threshold : hint_range(0.0, 1.0) = 0.1;
+
+bool is_wrapped(vec2 uv) {
+    return uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0;
+}
+
+void fragment() {
+    vec2 uv = SCREEN_UV;
+
+    vec2 pixel_offset = vec2(1.0) / SCREEN_PIXEL_SIZE;
+
+    vec2 top_uv = uv + vec2(0.0, 1.0) * pixel_offset;
+    vec2 bottom_uv = uv + vec2(0.0, -1.0) * pixel_offset;
+    vec2 left_uv = uv + vec2(1.0, 0.0) * pixel_offset;
+    vec2 right_uv = uv + vec2(-1.0, 0.0) * pixel_offset;
+
+    if (is_wrapped(top_uv) || is_wrapped(bottom_uv) || is_wrapped(left_uv) || is_wrapped(right_uv)) {
+        COLOR = texture(SCREEN_TEXTURE, uv);
+        return;
+    }
+
+    vec4 top = texture(SCREEN_TEXTURE, top_uv);
+    vec4 bottom = texture(SCREEN_TEXTURE, bottom_uv);
+    vec4 left = texture(SCREEN_TEXTURE, left_uv);
+    vec4 right = texture(SCREEN_TEXTURE, right_uv);
+
+    float top_gray = dot(top.rgb, vec3(0.299, 0.587, 0.114));
+    float bottom_gray = dot(bottom.rgb, vec3(0.299, 0.587, 0.114));
+    float left_gray = dot(left.rgb, vec3(0.299, 0.587, 0.114));
+    float right_gray = dot(right.rgb, vec3(0.299, 0.587, 0.114));
+
+    float edge = abs(top_gray - bottom_gray) + abs(left_gray - right_gray);
+
+    edge = smoothstep(edge_threshold, edge_threshold + 0.01, edge);
+    COLOR = vec4(vec3(edge), 1.0);
+}
+"
+
+[resource]
+shader = SubResource( 1 )
